@@ -27,10 +27,10 @@ namespace Detail {
     static Point rotatePoint(Point p, double phi) {
         if (!p.is_polar) {
             Point p_c = to_polar(p);
-            Point p_r(p_c.first, p_c.second + phi, true);
+            Point p_r(p_c.first, p_c.second - phi, true);
             return from_polar(p_r);
         } else {
-            return from_polar(Point(p.first, p.second + phi, true));
+            return from_polar(Point(p.first, p.second - phi, true));
         }
     }
 
@@ -41,7 +41,7 @@ namespace Detail {
 
     static Point scalePoint(Point p, double scale) {
         assert(!p.is_polar);
-        return Point(p.first*scale, p.second*scale, false);
+        return Point(p.first/scale, p.second/scale, false);
     }
 
     static Point checkToPolar (Point p) {
@@ -50,6 +50,19 @@ namespace Detail {
 
     static Point checkFromPolar (Point p) {
         return !p.is_polar ? p : from_polar(p);
+    }
+
+    static Point convertPoint(Point p, double d) {
+        Coordinate first = p.first;
+        Coordinate second = p.second;
+
+        return Point(
+        first < 0 ? first + 2*(int)(fabs(first/d) + 2)*d : first,
+        second < 0 ? second + 2*(int)(fabs(second/d) + 2)*d : second);
+    }
+
+    static Point polarCheckerPoint(Point p, int n) {
+        return Point(checkToPolar(p).first, checkToPolar(p).second*((double)n/M_PI), false);
     }
 
 }
@@ -104,10 +117,8 @@ Base_image<T> vertical_stripe(double d, T this_way, T that_way) {
 template <typename T>
 Base_image<T> checker(double d, T this_way, T that_way) {
     return [=](Point p) {
-        return p.first*p.second > 0 ?
-               (((int) (p.first/d) + (int) (p.second/d))%2 == 0 ? this_way : that_way)
-               :
-               (((int) (p.first/d) + (int) (p.second/d))%2 == 0 ? that_way : this_way);
+        Point p_c = Detail::convertPoint(p, d);
+        return  (((int) (p_c.first/d) + (int) (p_c.second/d))%2 == 0 ? this_way : that_way);
     };
 }
 
@@ -115,6 +126,39 @@ template <typename T>
 Base_image<T> rings(Point q, double d, T this_way, T that_way) {
     return [=](Point p) {
         return (int)(distance(Detail::checkFromPolar(q), Detail::checkFromPolar(p))/d) % 2 == 0 ? this_way : that_way;
+    };
+}
+
+template <typename T>
+Base_image<T> polar_checker(double d, int n, T this_way, T that_way) {
+    return [=](Point p) {
+        return ((int) (Detail::checkToPolar(p).second / (M_PI*2/n)) % 2 == 0) ?
+            checker(d, this_way, that_way)(Detail::polarCheckerPoint(p, 4)) :
+            checker(d, that_way, this_way)(Detail::polarCheckerPoint(p, 4));
+    };
+}
+
+static Image cond(Region region, Image this_way, Image that_way) {
+    return [=](Point p){
+        return region(p)? this_way(p) : that_way(p);
+    };
+}
+
+static Image lerp(Blend blend, Image this_way, Image that_way) {
+    return [=](Point p) {
+        return this_way(p).weighted_mean(that_way(p), blend(p));
+    };
+}
+
+static Image darken(Image image, Blend blend) {
+    return [=](Point p) {
+        return image(p).weighted_mean(constant(Colors::black)(p), blend(p));
+    };
+}
+
+static Image lighten(Image image, Blend blend) {
+    return [=](Point p) {
+        return image(p).weighted_mean(constant(Colors::white)(p), blend(p));
     };
 }
 
