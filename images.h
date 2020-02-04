@@ -134,33 +134,17 @@ Base_image<T> polar_checker(double d, int n, T this_way, T that_way) {
     return [=](Point p) {
         return ((int) (Detail::checkToPolar(p).second / (M_PI*2/n)) % 2 == 0) ?
             checker(d, this_way, that_way)(Detail::polarCheckerPoint(p, 4)) :
-            checker(d, that_way, this_way)(Detail::polarCheckerPoint(p, 4));
+            checker(d, that_way, this_way)(Detail::polarCheckerPoint(p, 4 ));
     };
 }
 
-static Image cond(Region region, Image this_way, Image that_way) {
-    return [=](Point p){
-        return region(p)? this_way(p) : that_way(p);
-    };
-}
+Image cond(Region region, Image this_way, Image that_way);
 
-static Image lerp(Blend blend, Image this_way, Image that_way) {
-    return [=](Point p) {
-        return this_way(p).weighted_mean(that_way(p), blend(p));
-    };
-}
+Image lerp(Blend blend, Image this_way, Image that_way);
 
-static Image darken(Image image, Blend blend) {
-    return [=](Point p) {
-        return image(p).weighted_mean(constant(Colors::black)(p), blend(p));
-    };
-}
+Image darken(Image image, Blend blend);
 
-static Image lighten(Image image, Blend blend) {
-    return [=](Point p) {
-        return image(p).weighted_mean(constant(Colors::white)(p), blend(p));
-    };
-}
+Image lighten(Image image, Blend blend);
 
 
 
